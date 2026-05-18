@@ -1,0 +1,79 @@
+name: Build y Deploy a AWS EC2
+
+on:
+  push:
+    branches:
+      - main
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REGISTRY: ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.us-east-1.amazonaws.com
+  REPO_FRONT: front-despacho
+  REPO_BACK_DESPACHOS: back-despachos
+  REPO_BACK_VENTAS: back-ventas
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Build and Push Frontend
+        run: |
+          docker build -t ${{ env.ECR_REGISTRY }}/${{ env.REPO_FRONT }}:latest ./front_despacho
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.REPO_FRONT }}:latest
+
+      - name: Build and Push Backend Despachos
+        run: |
+          docker build -t ${{ env.ECR_REGISTRY }}/${{ env.REPO_BACK_DESPACHOS }}:latest ./back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.REPO_BACK_DESPACHOS }}:latest
+
+      - name: Build and Push Backend Ventas
+        run: |
+          docker build -t ${{ env.ECR_REGISTRY }}/${{ env.REPO_BACK_VENTAS }}:latest ./back-Ventas_SpringBoot/Springboot-API-REST
+          docker push ${{ env.ECR_REGISTRY }}/${{ env.REPO_BACK_VENTAS }}:latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Execute deployment via SSH
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          envs: ECR_REGISTRY,REPO_FRONT,REPO_BACK_DESPACHOS,REPO_BACK_VENTAS
+          script: |
+            # Autenticar la instancia EC2 con ECR
+            aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ env.ECR_REGISTRY }}
+            
+            # Detener contenedores antiguos (ignora errores si no existen)
+            docker stop front back-despachos back-ventas || true
+            docker rm front back-despachos back-ventas || true
+            
+            # Descargar las imágenes actualizadas
+            docker pull ${{ env.ECR_REGISTRY }}/${{ env.REPO_FRONT }}:latest
+            docker pull ${{ env.ECR_REGISTRY }}/${{ env.REPO_BACK_DESPACHOS }}:latest
+            docker pull ${{ env.ECR_REGISTRY }}/${{ env.REPO_BACK_VENTAS }}:latest
+            
+            # Levantar los nuevos contenedores
+            # Asignar puertos estratégicos. Asegúrate de que el Security Group de EC2 permita este tráfico.
+            docker run -d --name front -p 80:80 ${{ env.ECR_REGISTRY }}/${{ env.REPO_FRONT }}:latest
+            docker run -d --name back-despachos -p 8080:8080 ${{ env.ECR_REGISTRY }}/${{ env.REPO_BACK_DESPACHOS }}:latest
+            docker run -d --name back-ventas -p 8081:8081 ${{ env.ECR_REGISTRY }}/${{ env.REPO_BACK_VENTAS }}:latest
+            
+            # Limpiar imágenes obsoletas para no saturar el disco
+            docker image prune -af
