@@ -45,13 +45,13 @@ jobs:
 
     - name: Build y push a ECR - Backend Despachos
       run: |
-        docker build -t ${{ env.REPO_BACK_DESPACHOS }} ./back-Despachos_SpringBoot/app
+        docker build -t ${{ env.REPO_BACK_DESPACHOS }} ./back-Despachos_SpringBoot
         docker tag ${{ env.REPO_BACK_DESPACHOS }}:latest ${{ steps.login-ecr.outputs.registry }}/${{ env.REPO_BACK_DESPACHOS }}:latest
         docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.REPO_BACK_DESPACHOS }}:latest
 
     - name: Build y push a ECR - Backend Ventas
       run: |
-        docker build -t ${{ env.REPO_BACK_VENTAS }} ./back-Ventas_SpringBoot/app
+        docker build -t ${{ env.REPO_BACK_VENTAS }} ./back-Ventas_SpringBoot
         docker tag ${{ env.REPO_BACK_VENTAS }}:latest ${{ steps.login-ecr.outputs.registry }}/${{ env.REPO_BACK_VENTAS }}:latest
         docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.REPO_BACK_VENTAS }}:latest
 
