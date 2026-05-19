@@ -131,10 +131,7 @@ jobs:
             "docker pull ${{ secrets.ECR_REGISTRY }}/${{ env.REPO_FRONT }}:latest",
             "docker stop front-app || true",
             "docker rm front-app || true",
-            "docker run -d --restart unless-stopped --name front-app -p 80:80 \
-              -e BACKEND_VENTAS_IP=${{ secrets.EC2_VENTAS_PRIVATE_IP }} \
-              -e BACKEND_DESPACHOS_IP=${{ secrets.EC2_DESPACHOS_PRIVATE_IP }} \
-              ${{ secrets.ECR_REGISTRY }}/${{ env.REPO_FRONT }}:latest",
+            "docker run -d --restart unless-stopped --name front-app -p 80:80 -e BACKEND_VENTAS_IP=${{ secrets.EC2_VENTAS_PRIVATE_IP }} -e BACKEND_DESPACHOS_IP=${{ secrets.EC2_DESPACHOS_PRIVATE_IP }} ${{ secrets.ECR_REGISTRY }}/${{ env.REPO_FRONT }}:latest",
             "docker image prune -af"
           ]}' \
           --output text
