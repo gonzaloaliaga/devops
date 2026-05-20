@@ -52,6 +52,7 @@ INSERT INTO despacho (fecha_despacho, patente_camion, intento, id_compra, direcc
 -- ==========================================
 -- 3. PERMISOS DE USUARIO
 -- ==========================================
+CREATE USER IF NOT EXISTS 'user'@'%' IDENTIFIED BY 'password';
 GRANT ALL PRIVILEGES ON db_despachos.* TO 'user'@'%';
 GRANT ALL PRIVILEGES ON db_ventas.* TO 'user'@'%';
 
