@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS despacho (
 -- Insertar datos de prueba (Despachos)
 -- Nota: id_compra hace referencia conceptual a id_venta de la otra base de datos
 INSERT INTO despacho (fecha_despacho, patente_camion, intento, id_compra, direccion_compra, valor_compra, despachado) VALUES
-('2026-05-11', 'AB-CD-12', 1, 1, 'Av. Vicuña Mackenna 4917, San Joaquín', 45000, 1),
+('2026-05-11', 'AB-CD-12', 1, 1, 'Av. Vicuña Mackenna 4918, San Joaquín', 45000, 1),
 ('2026-05-13', 'EF-GH-34', 2, 2, 'Providencia 1234, Santiago', 120000, 1),
 (NULL, NULL, 0, 3, 'Av. La Florida 8900, La Florida', 15000, 0);
 
