@@ -3,7 +3,7 @@ name: Build y Deploy a AWS EC2
 on:
   push:
     branches:
-      - "main"
+      - "deploy"
 
 env:
   AWS_REGION: us-east-1
@@ -13,10 +13,11 @@ env:
   REPO_DB: db-mysql
 
 jobs:
+  # TAREA 1: Construcción y envío de imágenes al registro ECR
   build-push-ecr:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout código
+    - name: Checkout del código fuente
       uses: actions/checkout@v3
 
     - name: Configurar credenciales AWS
@@ -27,10 +28,11 @@ jobs:
         aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
         aws-region: ${{ env.AWS_REGION }}
 
-    - name: Login en Amazon ECR (runner)
+    - name: Login en Amazon ECR
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v1
 
+    # Construye y sube las imágenes Docker de cada componente al ECR centralizado
     - name: Build y push a ECR - Base de Datos
       run: |
         docker build -t ${{ env.REPO_DB }} ./database
@@ -55,6 +57,7 @@ jobs:
         docker tag ${{ env.REPO_BACK_VENTAS }}:latest ${{ steps.login-ecr.outputs.registry }}/${{ env.REPO_BACK_VENTAS }}:latest
         docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.REPO_BACK_VENTAS }}:latest
 
+  # TAREA 2: Despliegue en EC2 mediante Systems Manager (SSM)
   deploy-ssm:
     needs: build-push-ecr
     runs-on: ubuntu-latest
@@ -67,71 +70,55 @@ jobs:
         aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
         aws-region: ${{ env.AWS_REGION }}
 
-    # CAPA 3: BASE DE DATOS
+    # CAPA 3: Despliegue de la Base de Datos en su EC2 dedicada
     - name: Desplegar DB vía SSM
       run: |
         aws ssm send-command \
           --instance-ids ${{ secrets.EC2_DB_INSTANCE_ID }} \
           --document-name "AWS-RunShellScript" \
-          --comment "Actualizar DB desde ECR" \
           --parameters '{"commands":[
-            "set -e",
             "aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}",
             "docker pull ${{ secrets.ECR_REGISTRY }}/${{ env.REPO_DB }}:latest",
-            "docker stop mysql-db || true",
-            "docker rm mysql-db || true",
+            "docker stop mysql-db || true && docker rm mysql-db || true",
             "docker run -d --restart unless-stopped --name mysql-db -p 3306:3306 ${{ secrets.ECR_REGISTRY }}/${{ env.REPO_DB }}:latest"
-          ]}' \
-          --output text
+          ]}'
 
-    # CAPA 2B: BACKEND DESPACHOS
+    # CAPA 2B: Despliegue de Backend Despachos
     - name: Desplegar Backend Despachos vía SSM
       run: |
         aws ssm send-command \
           --instance-ids ${{ secrets.EC2_DESPACHOS_INSTANCE_ID }} \
           --document-name "AWS-RunShellScript" \
-          --comment "Actualizar API Despachos desde ECR" \
           --parameters '{"commands":[
-            "set -e",
             "aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}",
             "docker pull ${{ secrets.ECR_REGISTRY }}/${{ env.REPO_BACK_DESPACHOS }}:latest",
-            "docker stop back-despachos || true",
-            "docker rm back-despachos || true",
+            "docker stop back-despachos || true && docker rm back-despachos || true",
             "docker run -d --restart unless-stopped --name back-despachos -p 8081:8081 -e DB_ENDPOINT=${{ secrets.EC2_DB_PRIVATE_IP }} -e DB_PORT=3306 -e DB_NAME=db_despachos -e DB_USERNAME=user -e DB_PASSWORD=password ${{ secrets.ECR_REGISTRY }}/${{ env.REPO_BACK_DESPACHOS }}:latest"
-          ]}' \
-          --output text
+          ]}'
 
-    # CAPA 2A: BACKEND VENTAS
+    # CAPA 2A: Despliegue de Backend Ventas
     - name: Desplegar Backend Ventas vía SSM
       run: |
         aws ssm send-command \
           --instance-ids ${{ secrets.EC2_VENTAS_INSTANCE_ID }} \
           --document-name "AWS-RunShellScript" \
-          --comment "Actualizar API Ventas desde ECR" \
           --parameters '{"commands":[
-            "set -e",
             "aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}",
             "docker pull ${{ secrets.ECR_REGISTRY }}/${{ env.REPO_BACK_VENTAS }}:latest",
-            "docker stop back-ventas || true",
-            "docker rm back-ventas || true",
+            "docker stop back-ventas || true && docker rm back-ventas || true",
             "docker run -d --restart unless-stopped --name back-ventas -p 8080:8080 -e DB_ENDPOINT=${{ secrets.EC2_DB_PRIVATE_IP }} -e DB_PORT=3306 -e DB_NAME=db_ventas -e DB_USERNAME=user -e DB_PASSWORD=password ${{ secrets.ECR_REGISTRY }}/${{ env.REPO_BACK_VENTAS }}:latest"
-          ]}' \
-          --output text
+          ]}'
 
-    # CAPA 1: FRONTEND
+    # CAPA 1: Despliegue del Frontend (Nginx)
     - name: Desplegar Frontend vía SSM
       run: |
         aws ssm send-command \
           --instance-ids ${{ secrets.EC2_FRONTEND_INSTANCE_ID }} \
           --document-name "AWS-RunShellScript" \
-          --comment "Actualizar Frontend desde ECR" \
           --parameters '{"commands":[
-            "set -e",
             "aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}",
             "docker pull ${{ secrets.ECR_REGISTRY }}/${{ env.REPO_FRONT }}:latest",
-            "docker stop front-app || true",
-            "docker rm front-app || true",
+            "docker stop front-app || true && docker rm front-app || true",
             "docker run -d --restart unless-stopped --name front-app -p 80:80 -e BACKEND_VENTAS_IP=${{ secrets.EC2_VENTAS_PRIVATE_IP }} -e BACKEND_DESPACHOS_IP=${{ secrets.EC2_DESPACHOS_PRIVATE_IP }} ${{ secrets.ECR_REGISTRY }}/${{ env.REPO_FRONT }}:latest",
             "docker image prune -af"
-          ]}' \
-          --output text
+          ]}'

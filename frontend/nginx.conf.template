@@ -1,0 +1,26 @@
+server {
+    listen 80;
+    
+    # 1. Servir los archivos de React/Vite
+    location / {
+        root   /usr/share/nginx/html;
+        index  index.html index.htm;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # 2. Proxy inverso para el Backend de Ventas
+    location /api/ventas/ {
+        # Todo lo que vaya a /api/ventas/ se redirige al puerto 8080 de forma interna
+        proxy_pass http://10.0.133.221:8080/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+
+    # 3. Proxy inverso para el Backend de Despachos
+    location /api/despachos/ {
+        # Todo lo que vaya a /api/despachos/ se redirige al puerto 8081 de forma interna
+        proxy_pass http://10.0.141.69:8081/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
