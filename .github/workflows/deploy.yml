@@ -93,7 +93,7 @@ jobs:
             "aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}",
             "docker pull ${{ secrets.ECR_REGISTRY }}/${{ env.REPO_BACK_DESPACHOS }}:latest",
             "docker stop back-despachos || true && docker rm back-despachos || true",
-            "docker run -d --restart unless-stopped --name back-despachos -p 8081:8081 -e DB_ENDPOINT=${{ secrets.EC2_DB_PRIVATE_IP }} -e DB_PORT=3306 -e DB_NAME=db_despachos -e DB_USERNAME=user -e DB_PASSWORD=password ${{ secrets.ECR_REGISTRY }}/${{ env.REPO_BACK_DESPACHOS }}:latest"
+            "docker run -d --restart unless-stopped --name back-despachos -p 8081:8081 -e DB_PORT=3306 -e DB_NAME=db_despachos -e DB_USERNAME=user -e DB_PASSWORD=password ${{ secrets.ECR_REGISTRY }}/${{ env.REPO_BACK_DESPACHOS }}:latest"
           ]}'
 
     # CAPA 2A: Despliegue de Backend Ventas
@@ -106,7 +106,7 @@ jobs:
             "aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}",
             "docker pull ${{ secrets.ECR_REGISTRY }}/${{ env.REPO_BACK_VENTAS }}:latest",
             "docker stop back-ventas || true && docker rm back-ventas || true",
-            "docker run -d --restart unless-stopped --name back-ventas -p 8080:8080 -e DB_ENDPOINT=${{ secrets.EC2_DB_PRIVATE_IP }} -e DB_PORT=3306 -e DB_NAME=db_ventas -e DB_USERNAME=user -e DB_PASSWORD=password ${{ secrets.ECR_REGISTRY }}/${{ env.REPO_BACK_VENTAS }}:latest"
+            "docker run -d --restart unless-stopped --name back-ventas -p 8080:8080 -e DB_PORT=3306 -e DB_NAME=db_ventas -e DB_USERNAME=user -e DB_PASSWORD=password ${{ secrets.ECR_REGISTRY }}/${{ env.REPO_BACK_VENTAS }}:latest"
           ]}'
 
     # CAPA 1: Despliegue del Frontend (Nginx)
@@ -119,6 +119,6 @@ jobs:
             "aws ecr get-login-password --region ${{ env.AWS_REGION }} | docker login --username AWS --password-stdin ${{ secrets.ECR_REGISTRY }}",
             "docker pull ${{ secrets.ECR_REGISTRY }}/${{ env.REPO_FRONT }}:latest",
             "docker stop front-app || true && docker rm front-app || true",
-            "docker run -d --restart unless-stopped --name front-app -p 80:80 -e BACKEND_VENTAS_IP=${{ secrets.EC2_VENTAS_PRIVATE_IP }} -e BACKEND_DESPACHOS_IP=${{ secrets.EC2_DESPACHOS_PRIVATE_IP }} ${{ secrets.ECR_REGISTRY }}/${{ env.REPO_FRONT }}:latest",
+            "docker run -d --restart unless-stopped --name front-app -p 80:80 ${{ secrets.ECR_REGISTRY }}/${{ env.REPO_FRONT }}:latest",
             "docker image prune -af"
           ]}'
